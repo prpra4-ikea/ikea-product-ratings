@@ -1,74 +1,80 @@
 const express = require('express');
 const cors = require('cors');
-const Pool = require('pg').Pool
-const pool = new Pool({
-    user: 'postgres',
-    host: 'db-container',
-    database: 'todo_app_db',
-    password: 'docker',
-    port: 5432,
-})
-
+const { Sequelize, Model, DataTypes } = require('sequelize');
 const app = express();
-app.use(cors())
-app.use(express.json())
 
-app.get('/', (req, response) => {
-    response.header('Access-Control-Allow-Origin', '*');
-    response.send('Hi There')
+const sequelize = new Sequelize({
+    dialect: 'sqlite',
+    storage: './database.sqlite'
 });
 
-app.get('/api/todos', (request, response) => {
-    response.header('Access-Control-Allow-Origin', '*');
-    pool.query('SELECT * FROM todos ORDER BY id ASC', (error, results) => {
-        if (error) throw error;
+// Define User model
+class User extends Model {}
+User.init({
+    product_type: DataTypes.STRING,
+    product_name: DataTypes.STRING,
+    rating: DataTypes.INTEGER,
+    comment: DataTypes.STRING,
+}, { sequelize, modelName: 'product' });
+    
 
-        console.log(results)
-        response.status(200).json(results.rows)
-    })
-})
+// Sync models with database
+sequelize.sync();
 
-app.post('/api/todos', (request, response) => {
-    response.header('Access-Control-Allow-Origin', '*');
-    const { title, done } = request.body
+const products = [
+    { product_type: "Bedroom",  product_name: "Bedframe",rating: 4,comment: "Good"},
+    { product_type: "Living room",  product_name: "Wardrobe",rating: 4,comment: "Good"},
+    { product_type: "Kitchen",  product_name: "Table",rating: 4,comment: "Good" }
+];
 
-    pool.query('INSERT INTO todos (title, done) VALUES ($1, $2) RETURNING *', [title, done], (error, results) => {
-        if (error) throw error;
-        console.log(results)
-        response.status(201).send(`Todo added with ID: ${results.rows[0].id}`)
-    })
+
+app.use(cors());
+app.use(express.json());
+app.use(express.static('react-frontend/dist'));
+
+app.get("/", (req, res) => {
+    res.json({ data: 'Hello Ikea!' });
 });
 
-app.get('/api/todos/:id', (request, response) => {
-    const id = parseInt(request.params.id)
-    response.header('Access-Control-Allow-Origin', '*');
-    pool.query('SELECT * FROM todos WHERE id = $1', [id], (error, results) => {
-        if (error) throw error;
-        response.status(200).json(results.rows)
-    })
+app.get('/api/seeds', async (req, res) => {
+    users.forEach(product => Product.create(product));
+    res.json(products);
 });
 
-app.delete('/api/todos/:id', (request, response) => {
-    const id = parseInt(request.params.id)
-    response.header('Access-Control-Allow-Origin', '*');
-    pool.query('DELETE FROM todos WHERE id = $1', [id], (error, results) => {
-        if (error) throw error;
-        response.status(204).send(`Todo deleted with ID: ${id}`)
-    })
+app.get('/api/products', async (req, res) => {
+    const products = await User.findAll();
+    res.json(products);
 });
 
-app.put('/api/todos/:id', (request, response) => {
-    const id = parseInt(request.params.id)
-    const { title, done } = request.body
-    response.header('Access-Control-Allow-Origin', '*');
-    pool.query(
-        'UPDATE todos SET title = $1, done = $2 WHERE id = $3',
-        [title, done, id],
-        (error, results) => {
-            if (error) throw error;
-            response.status(200).send(`Todo modified with ID: ${id}`)
-        })
+app.get("/api/products/:id", async (req, res) => {
+    const user = await Product.findByPk(req.params.id);
+    res.json(product);
 });
 
+app.post('/api/products', async (req, res) => {
+    const user = await Product.create(req.body);
+    res.json(product);
+});
 
-app.listen('3001', () => { })
+app.put("/api/products/:id", async (req, res) => {
+    const { product_type, product_name, rating } = req.body;
+
+    const product = await Product.findByPk(req.params.id);
+    await product.update({ name, isAdmin });
+    await product.save();
+    res.json(product);
+});
+
+app.delete('/api/products/:id', async (req, res) => {
+    const product = await Product.findByPk(req.params.id);
+    await product.destroy();
+    res.json({data: `The product with id of ${req.params.id} is removed.`});
+});
+
+const port = process.env.PORT || 8080;
+server =  app.listen(port, async () => {
+    console.log(`Server started at ${port}`)
+});
+module.exports = {app, server}
+
+//app.listen('8080', () => { })
